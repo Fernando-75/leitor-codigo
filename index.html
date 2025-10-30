@@ -184,52 +184,43 @@ function iniciarLeituraCamera() {
     const btnIniciar = document.getElementById('btn_iniciar_camera');
 
     // Se já está rodando, para
-    if (html5QrcodeScanner && html5QrcodeScanner.getState() === 2) { 
-        html5QrcodeScanner.stop().then(() => {
-            leitorDiv.style.display = 'none';
-            btnIniciar.innerText = 'Ler Código de Barras com Câmera';
-        }).catch(err => console.error("Erro ao parar a câmera:", err));
-        return;
-    }
+    if (html5QrcodeScanner && html5QrcodeScanner.getState() === 2) { 
+        html5QrcodeScanner.stop().then(() => {
+            leitorDiv.style.display = 'none';
+            btnIniciar.innerText = 'Ler Código de Barras com Câmera';
+        }).catch(err => console.error("Erro ao parar a câmera:", err));
+        return;
+    }
 
-    leitorDiv.style.display = 'block';
-    html5QrcodeScanner = new Html5Qrcode("reader");
+    leitorDiv.style.display = 'block';
+    html5QrcodeScanner = new Html5Qrcode("reader");
 
-    const config = { 
-        fps: 30, 
-        qrbox: { width: 450, height: 100 }, // Área de foco estreita (mantida da correção anterior)
-        aspectRatio: 3.0,                  // Proporção (mantida da correção anterior)
-        formats: [
-            Html5QrcodeSupportedFormats.ITF,
-            Html5QrcodeSupportedFormats.CODE_128, 
-            Html5QrcodeSupportedFormats.CODE_39
-        ],
-        tryHarder: true, 
-        disableFlip: false 
-    };
+    const config = { 
+        fps: 30,                       // mais frames para celular top
+        qrbox: { width: 400, height: 200 },  // área maior de leitura
+        formats: [
+            Html5QrcodeSupportedFormats.CODE_128, 
+            Html5QrcodeSupportedFormats.ITF,
+            Html5QrcodeSupportedFormats.CODE_39
+        ],
+        tryHarder: true,               // aumenta chance de leitura
+        disableFlip: false             // permite inverter se necessário
+    };
 
-    btnIniciar.innerText = 'Parar Câmera (Tentando ler...)';
+    btnIniciar.innerText = 'Parar Câmera (Tentando ler...)';
 
-    html5QrcodeScanner.start(
-        // CORREÇÃO: Usamos 'environment' sem 'exact' para ser menos rígido, 
-        // ou passamos 'true' para aceitar qualquer câmera disponível.
-        // Tente uma das duas opções abaixo, se uma não funcionar, tente a outra.
-        
-        // OPÇÃO 1 (Menos rígida): Prefere a traseira, mas não exige
-        { facingMode: "environment" }, 
-        
-        // OPÇÃO 2 (Mais genérica): Aceita qualquer câmera (frontal ou traseira)
-        // true, 
-
-        config,
-        onScanSuccess,
-        onScanError
-    ).catch(err => {
-        alert(`Erro ao iniciar câmera. Verifique se o site está em HTTPS e se deu permissão: ${err}`);
-        leitorDiv.style.display = 'none';
-        btnIniciar.innerText = 'Tentar Ler Código de Barras com Câmera';
-    });
+    html5QrcodeScanner.start(
+        { facingMode: { exact: "environment" } }, // força câmera traseira
+        config,
+        onScanSuccess,
+        onScanError
+    ).catch(err => {
+        alert(`Erro ao iniciar câmera: ${err}. Verifique permissões ou use Chrome/Edge.`);
+        leitorDiv.style.display = 'none';
+        btnIniciar.innerText = 'Tentar Ler Código de Barras com Câmera';
+    });
 }
+
 
 
     function onScanError(errorMessage) {
