@@ -178,6 +178,7 @@
     
     // --- FUNÇÕES DE LEITURA DA CÂMERA (HTML5-Qrcode) ---
     // --- FUNÇÕES DE LEITURA DA CÂMERA (HTML5-Qrcode) ---
+// --- FUNÇÕES DE LEITURA DA CÂMERA (HTML5-Qrcode) ---
 function iniciarLeituraCamera() {
     const leitorDiv = document.getElementById('reader_container');
     const btnIniciar = document.getElementById('btn_iniciar_camera');
@@ -195,33 +196,36 @@ function iniciarLeituraCamera() {
     html5QrcodeScanner = new Html5Qrcode("reader");
 
     const config = { 
-        fps: 30,                       // mais frames para celular top
-        // CORREÇÃO PRINCIPAL: Foca em uma área mais larga e MUITO mais baixa 
-        // (Otimizado para o código de barras longo e fino do mandado)
-        qrbox: { width: 450, height: 100 },  
-        
-        // NOVO: Adiciona um aspect ratio (proporção) para reforçar a busca por códigos longos e horizontais
-        aspectRatio: 3.0,
-        
-        // MUDANÇA: Garante que os formatos de códigos de barras (ITF e CODE_128) sejam priorizados.
+        fps: 30, 
+        qrbox: { width: 450, height: 100 }, // Área de foco estreita (mantida da correção anterior)
+        aspectRatio: 3.0,                  // Proporção (mantida da correção anterior)
         formats: [
             Html5QrcodeSupportedFormats.ITF,
             Html5QrcodeSupportedFormats.CODE_128, 
             Html5QrcodeSupportedFormats.CODE_39
         ],
-        tryHarder: true,               // aumenta chance de leitura
-        disableFlip: false             // permite inverter se necessário
+        tryHarder: true, 
+        disableFlip: false 
     };
 
     btnIniciar.innerText = 'Parar Câmera (Tentando ler...)';
 
     html5QrcodeScanner.start(
-        { facingMode: { exact: "environment" } }, // força câmera traseira
+        // CORREÇÃO: Usamos 'environment' sem 'exact' para ser menos rígido, 
+        // ou passamos 'true' para aceitar qualquer câmera disponível.
+        // Tente uma das duas opções abaixo, se uma não funcionar, tente a outra.
+        
+        // OPÇÃO 1 (Menos rígida): Prefere a traseira, mas não exige
+        { facingMode: "environment" }, 
+        
+        // OPÇÃO 2 (Mais genérica): Aceita qualquer câmera (frontal ou traseira)
+        // true, 
+
         config,
         onScanSuccess,
         onScanError
     ).catch(err => {
-        alert(`Erro ao iniciar câmera: ${err}. Verifique permissões ou use Chrome/Edge.`);
+        alert(`Erro ao iniciar câmera. Verifique se o site está em HTTPS e se deu permissão: ${err}`);
         leitorDiv.style.display = 'none';
         btnIniciar.innerText = 'Tentar Ler Código de Barras com Câmera';
     });
