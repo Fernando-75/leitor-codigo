@@ -177,46 +177,54 @@
     }
     
     // --- FUNÇÕES DE LEITURA DA CÂMERA (HTML5-Qrcode) ---
-    function iniciarLeituraCamera() {
+    // --- FUNÇÕES DE LEITURA DA CÂMERA (HTML5-Qrcode) ---
+function iniciarLeituraCamera() {
     const leitorDiv = document.getElementById('reader_container');
     const btnIniciar = document.getElementById('btn_iniciar_camera');
 
     // Se já está rodando, para
-    if (html5QrcodeScanner && html5QrcodeScanner.getState() === 2) { 
-        html5QrcodeScanner.stop().then(() => {
-            leitorDiv.style.display = 'none';
-            btnIniciar.innerText = 'Ler Código de Barras com Câmera';
-        }).catch(err => console.error("Erro ao parar a câmera:", err));
-        return;
-    }
+    if (html5QrcodeScanner && html5QrcodeScanner.getState() === 2) { 
+        html5QrcodeScanner.stop().then(() => {
+            leitorDiv.style.display = 'none';
+            btnIniciar.innerText = 'Ler Código de Barras com Câmera';
+        }).catch(err => console.error("Erro ao parar a câmera:", err));
+        return;
+    }
 
-    leitorDiv.style.display = 'block';
-    html5QrcodeScanner = new Html5Qrcode("reader");
+    leitorDiv.style.display = 'block';
+    html5QrcodeScanner = new Html5Qrcode("reader");
 
-    const config = { 
-        fps: 30,                       // mais frames para celular top
-        qrbox: { width: 400, height: 200 },  // área maior de leitura
-        formats: [
-            Html5QrcodeSupportedFormats.CODE_128, 
-            Html5QrcodeSupportedFormats.ITF,
-            Html5QrcodeSupportedFormats.CODE_39
-        ],
-        tryHarder: true,               // aumenta chance de leitura
-        disableFlip: false             // permite inverter se necessário
-    };
+    const config = { 
+        fps: 30,                       // mais frames para celular top
+        // CORREÇÃO PRINCIPAL: Foca em uma área mais larga e MUITO mais baixa 
+        // (Otimizado para o código de barras longo e fino do mandado)
+        qrbox: { width: 450, height: 100 },  
+        
+        // NOVO: Adiciona um aspect ratio (proporção) para reforçar a busca por códigos longos e horizontais
+        aspectRatio: 3.0,
+        
+        // MUDANÇA: Garante que os formatos de códigos de barras (ITF e CODE_128) sejam priorizados.
+        formats: [
+            Html5QrcodeSupportedFormats.ITF,
+            Html5QrcodeSupportedFormats.CODE_128, 
+            Html5QrcodeSupportedFormats.CODE_39
+        ],
+        tryHarder: true,               // aumenta chance de leitura
+        disableFlip: false             // permite inverter se necessário
+    };
 
-    btnIniciar.innerText = 'Parar Câmera (Tentando ler...)';
+    btnIniciar.innerText = 'Parar Câmera (Tentando ler...)';
 
-    html5QrcodeScanner.start(
-        { facingMode: { exact: "environment" } }, // força câmera traseira
-        config,
-        onScanSuccess,
-        onScanError
-    ).catch(err => {
-        alert(`Erro ao iniciar câmera: ${err}. Verifique permissões ou use Chrome/Edge.`);
-        leitorDiv.style.display = 'none';
-        btnIniciar.innerText = 'Tentar Ler Código de Barras com Câmera';
-    });
+    html5QrcodeScanner.start(
+        { facingMode: { exact: "environment" } }, // força câmera traseira
+        config,
+        onScanSuccess,
+        onScanError
+    ).catch(err => {
+        alert(`Erro ao iniciar câmera: ${err}. Verifique permissões ou use Chrome/Edge.`);
+        leitorDiv.style.display = 'none';
+        btnIniciar.innerText = 'Tentar Ler Código de Barras com Câmera';
+    });
 }
 
 
