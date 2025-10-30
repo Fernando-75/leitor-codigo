@@ -178,7 +178,8 @@
     
     // --- FUNÇÕES DE LEITURA DA CÂMERA (HTML5-Qrcode) ---
     // --- FUNÇÕES DE LEITURA DA CÂMERA (HTML5-Qrcode) ---
-async function iniciarLeituraCamera() { // Função ASSÍNCRONA para buscar a melhor câmera
+// --- FUNÇÕES DE LEITURA DA CÂMERA (HTML5-Qrcode) ---
+async function iniciarLeituraCamera() {
     const leitorDiv = document.getElementById('reader_container');
     const btnIniciar = document.getElementById('btn_iniciar_camera');
 
@@ -196,50 +197,71 @@ async function iniciarLeituraCamera() { // Função ASSÍNCRONA para buscar a me
 
     btnIniciar.innerText = 'Parar Câmera (Tentando ler...)';
 
-    // 1. LÓGICA PARA SELECIONAR A MELHOR CÂMERA (Traseira)
+    // 1. LÓGICA REFORÇADA PARA SELECIONAR A CÂMERA TRASEIRA (Por ID)
     let cameraId = null;
     try {
         const cameras = await Html5Qrcode.getCameras();
         if (cameras && cameras.length) {
-            // Tenta achar a câmera traseira (environment)
-            const environmentCamera = cameras.find(camera => 
-                camera.label.toLowerCase().includes('back') || 
-                camera.label.toLowerCase().includes('environment')
+            // Tenta achar a câmera que NÃO seja a frontal ('user' ou 'front')
+            const nonUserCamera = cameras.find(camera => 
+                !camera.label.toLowerCase().includes('user') && 
+                !camera.label.toLowerCase().includes('front')
             );
-            // Usa a traseira ou a primeira câmera como fallback
-            cameraId = environmentCamera ? environmentCamera.id : cameras[0].id;
+            
+            // Se encontrar uma que não seja frontal, usa o ID dela.
+            if (nonUserCamera) {
+                cameraId = nonUserCamera.id;
+            } else {
+                // Se todas as câmeras tiverem rótulos confusos, usamos o ID da última câmera
+                // pois em muitos dispositivos a última câmera listada é a traseira.
+                cameraId = cameras[cameras.length - 1].id;
+            }
         } else {
-            // Se não houver câmeras, o erro será capturado abaixo no catch
-            cameraId = { facingMode: "environment" }; // Tenta iniciar com o modo traseiro por segurança
+            // Se nenhuma câmera for listada, tentamos iniciar com a restrição de ambiente (fallback)
+            cameraId = { facingMode: "environment" }; 
         }
     } catch (err) {
         console.error("Erro ao listar câmeras, tentando iniciar com facingMode:", err);
-        cameraId = { facingMode: "environment" }; // Se falhar, tenta o método não-ID (Opção 1)
+        // Fallback final: tenta forçar o modo ambiente
+        cameraId = { facingMode: "environment" };
     }
 
-    // 2. CONFIGURAÇÕES OTIMIZADAS PARA CÓDIGO DE BARRAS
+    // 2. CONFIGURAÇÕES OTIMIZADAS (Mantidas com a proporção ajustada)
     const config = { 
         fps: 30, 
-        // CORREÇÃO DE ÁREA DE FOCO (qrbox) - Faixa visual longa e estreita
-        qrbox: { width: 500, height: 100 }, // Aumentei um pouco a largura para 500 para ter mais margem
+        // ÁREA DE FOCO (qrbox) - Proporção para 6.8 x 1.6 cm
+        qrbox: { width: 500, height: 120 }, 
+        aspectRatio: 4.25, 
         
-        // NOVO: Proporção para reforçar a busca por códigos horizontais
-        aspectRatio: 5.0, // Aumentado para reforçar o formato longo
-        
-        // NOVO: FORÇA RESOLUÇÃO ALTA (videoConstraints) - Para melhor foco e qualidade
+        // FORÇA RESOLUÇÃO ALTA (videoConstraints) - Para melhor foco
         videoConstraints: {
-            width: { ideal: 1920 }, // Preferência por alta resolução
-            height: { ideal: 1080 } // Preferência por alta resolução
+            // Adiciona a restrição 'facingMode' aqui se o cameraId for um ID e não um objeto
+            facingMode: 'environment',
+            width: { ideal: 1920 }, 
+            height: { ideal: 1080 } 
         },
         
         formats: [
-            Html5QrcodeSupportedFormats.ITF, // Interleaved 2 of 5 (Prioritário para boletos/mandados)
+            Html5QrcodeSupportedFormats.ITF, 
             Html5QrcodeSupportedFormats.CODE_128, 
             Html5QrcodeSupportedFormats.CODE_39
         ],
         tryHarder: true, 
         disableFlip: false 
     };
+
+
+    html5QrcodeScanner.start(
+        cameraId, // Usará o ID da câmera, ou o modo 'environment' se falhar
+        config,
+        onScanSuccess,
+        onScanError
+    ).catch(err => {
+        alert(`Erro ao iniciar a Câmera. Verifique o HTTPS e as permissões. Erro: ${err}`);
+        leitorDiv.style.display = 'none';
+        btnIniciar.innerText = 'Tentar Ler Código de Barras com Câmera';
+    });
+}
 
 
     html5QrcodeScanner.start(
