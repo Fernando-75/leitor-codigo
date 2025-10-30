@@ -177,46 +177,81 @@
     }
     
     // --- FUNÇÕES DE LEITURA DA CÂMERA (HTML5-Qrcode) ---
-    function iniciarLeituraCamera() {
+    // --- FUNÇÕES DE LEITURA DA CÂMERA (HTML5-Qrcode) ---
+async function iniciarLeituraCamera() { // Função ASSÍNCRONA para buscar a melhor câmera
     const leitorDiv = document.getElementById('reader_container');
     const btnIniciar = document.getElementById('btn_iniciar_camera');
 
     // Se já está rodando, para
-    if (html5QrcodeScanner && html5QrcodeScanner.getState() === 2) { 
-        html5QrcodeScanner.stop().then(() => {
-            leitorDiv.style.display = 'none';
-            btnIniciar.innerText = 'Ler Código de Barras com Câmera';
-        }).catch(err => console.error("Erro ao parar a câmera:", err));
-        return;
-    }
+    if (html5QrcodeScanner && html5QrcodeScanner.getState() === 2) { 
+        html5QrcodeScanner.stop().then(() => {
+            leitorDiv.style.display = 'none';
+            btnIniciar.innerText = 'Ler Código de Barras com Câmera';
+        }).catch(err => console.error("Erro ao parar a câmera:", err));
+        return;
+    }
 
-    leitorDiv.style.display = 'block';
-    html5QrcodeScanner = new Html5Qrcode("reader");
-
-    const config = { 
-        fps: 30,                       // mais frames para celular top
-        qrbox: { width: 400, height: 200 },  // área maior de leitura
-        formats: [
-            Html5QrcodeSupportedFormats.CODE_128, 
-            Html5QrcodeSupportedFormats.ITF,
-            Html5QrcodeSupportedFormats.CODE_39
-        ],
-        tryHarder: true,               // aumenta chance de leitura
-        disableFlip: false             // permite inverter se necessário
-    };
+    leitorDiv.style.display = 'block';
+    html5QrcodeScanner = new Html5Qrcode("reader");
 
     btnIniciar.innerText = 'Parar Câmera (Tentando ler...)';
 
-    html5QrcodeScanner.start(
-        { facingMode: { exact: "environment" } }, // força câmera traseira
-        config,
-        onScanSuccess,
-        onScanError
-    ).catch(err => {
-        alert(`Erro ao iniciar câmera: ${err}. Verifique permissões ou use Chrome/Edge.`);
-        leitorDiv.style.display = 'none';
-        btnIniciar.innerText = 'Tentar Ler Código de Barras com Câmera';
-    });
+    // 1. LÓGICA PARA SELECIONAR A MELHOR CÂMERA (Traseira)
+    let cameraId = null;
+    try {
+        const cameras = await Html5Qrcode.getCameras();
+        if (cameras && cameras.length) {
+            // Tenta achar a câmera traseira (environment)
+            const environmentCamera = cameras.find(camera => 
+                camera.label.toLowerCase().includes('back') || 
+                camera.label.toLowerCase().includes('environment')
+            );
+            // Usa a traseira ou a primeira câmera como fallback
+            cameraId = environmentCamera ? environmentCamera.id : cameras[0].id;
+        } else {
+            // Se não houver câmeras, o erro será capturado abaixo no catch
+            cameraId = { facingMode: "environment" }; // Tenta iniciar com o modo traseiro por segurança
+        }
+    } catch (err) {
+        console.error("Erro ao listar câmeras, tentando iniciar com facingMode:", err);
+        cameraId = { facingMode: "environment" }; // Se falhar, tenta o método não-ID (Opção 1)
+    }
+
+    // 2. CONFIGURAÇÕES OTIMIZADAS PARA CÓDIGO DE BARRAS
+    const config = { 
+        fps: 30, 
+        // CORREÇÃO DE ÁREA DE FOCO (qrbox) - Faixa visual longa e estreita
+        qrbox: { width: 500, height: 100 }, // Aumentei um pouco a largura para 500 para ter mais margem
+        
+        // NOVO: Proporção para reforçar a busca por códigos horizontais
+        aspectRatio: 5.0, // Aumentado para reforçar o formato longo
+        
+        // NOVO: FORÇA RESOLUÇÃO ALTA (videoConstraints) - Para melhor foco e qualidade
+        videoConstraints: {
+            width: { ideal: 1920 }, // Preferência por alta resolução
+            height: { ideal: 1080 } // Preferência por alta resolução
+        },
+        
+        formats: [
+            Html5QrcodeSupportedFormats.ITF, // Interleaved 2 of 5 (Prioritário para boletos/mandados)
+            Html5QrcodeSupportedFormats.CODE_128, 
+            Html5QrcodeSupportedFormats.CODE_39
+        ],
+        tryHarder: true, 
+        disableFlip: false 
+    };
+
+
+    html5QrcodeScanner.start(
+        cameraId, // Usará o ID da câmera, ou o modo 'environment' se falhar
+        config,
+        onScanSuccess,
+        onScanError
+    ).catch(err => {
+        alert(`Erro ao iniciar a Câmera. Possíveis causas: 1. Site não está em HTTPS; 2. Permissões negadas. Erro: ${err}`);
+        leitorDiv.style.display = 'none';
+        btnIniciar.innerText = 'Tentar Ler Código de Barras com Câmera';
+    });
 }
 
 function onScanSuccess(decodedText, decodedResult) {
