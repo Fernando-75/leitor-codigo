@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Assistente OJA - Automação Atos Digitais</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script> 
+    <style>
+        body { font-family: Arial, sans-serif; padding: 15px; background-color: #f7f7f7; }
+        .container { max-width: 700px; margin: auto; background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
+        h2, h3 { color: #004d40; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; margin-top: 20px; }
+        label { display: block; margin-top: 10px; font-weight: bold; }
+        input[type="text"], textarea { width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; resize: vertical; }
+        textarea { min-height: 100px; }
+        button { background-color: #00796b; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px; transition: background-color 0.3s; }
+        button:hover { background-color: #004d40; }
+        .btn-group { margin-top: 20px; }
+        .output-section { background-color: #e8f5e9; padding: 15px; border-radius: 4px; border: 1px solid #c8e6c9; }
+        .info-cnj { background-color: #f1f8e9; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 0.9em; }
+        #config_buttons button { background-color: #d84315; }
+        #config_buttons button:hover { background-color: #bf360c; }
+        #reader_container { border: 1px solid #ccc; margin-bottom: 20px; padding: 10px; text-align: center; display: none; }
+        #reader { width: 100%; }
+        #cod_completo { background-color: #fffacd; }
+        .output-wrapper { display: flex; flex-direction: column; }
+        .copy-button-wrapper { text-align: right; margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Assistente Digital OJA</h2>
+
+    <div style="background-color: #ffccbc; padding: 10px; border-radius: 4px; margin-bottom: 20px; font-weight: bold;">
+        <p>☎️ Telefone do Forum de Muriaé:</p>
+        <p>: (32) 3729-3100 | Central de Mandados: (32) 3729-3125</p>
+    </div>
+
+    <h3>Configurações de Identificação</h3>
+    <label for="nome_servidor">Seu Nome e Matrícula (Para Certidão):</label>
+    <input type="text" id="nome_servidor" value="Oficial de Justiça Fernando do Carmo de Morais, matrícula: PJPI023297-5" oninput="gerarMensagemInicial()" placeholder="Ex: Oficial de Justiça João da Silva - Matrícula 123456">
+
+    <div id="config_buttons">
+        <button onclick="salvarConfiguracoesIdentificacao()">Salvar Identificação Pessoal</button>
+        <small>Seu nome e matrícula serão salvos no seu navegador.</small>
+    </div>
+    
+    <h3>Dados da Diligência</h3>
+    
+    <label for="cod_completo">1. Código de Barras / Processo (26 dígitos):</label>
+    <input type="text" id="cod_completo" placeholder="Cole aqui o código de 26 dígitos. Ex: 01155012514302025813043901" oninput="decodificarCNJ(this.value.trim())">
+    
+    <button onclick="iniciarLeituraCamera()" id="btn_iniciar_camera">Ler Código de Barras com Câmera</button>
+    <div id="reader_container">
+        <div id="reader"></div>
+    </div>
+    <div class="info-cnj" id="info_cnj"></div>
+
+    <label for="nome_comarca_manual">2. Nome da Comarca (Preencher e Salvar p/ Automação):</label>
+    <input type="text" id="nome_comarca_manual" value="Muriaé" placeholder="Ex: Muriaé" oninput="gerarMensagemInicial()">
+
+    <label for="nome_vara_manual">3. Nome da Vara/Secretaria (Preencher e Salvar p/ Automação):</label>
+    <input type="text" id="nome_vara_manual" value="2ª Vara Cível" placeholder="Ex: 1ª Vara Cível de Muriaé" oninput="gerarMensagemInicial()">
+
+    <button onclick="salvarComarcaEVara()">Salvar Nome da Comarca e Vara</button>
+    
+    <label for="nome_jurisdicionado">4. Nome do Jurisdicionado(a):</label>
+    <input type="text" id="nome_jurisdicionado" value="" placeholder="Nome da Parte (Para a Certidão)" oninput="gerarMensagemInicial()">
+    
+    <label for="dados_pessoais">Detalhes Opcionais de Segurança (CPF final/Nome dos Pais - Para Certidão):</label>
+    <input type="text" id="dados_pessoais" value="" placeholder="Ex: CPF final 4321 ou Nome do Pai: João" oninput="gerarMensagemInicial()">
+
+    <h3>Geração de Mensagens e Certidão</h3>
+    <div class="btn-group">
+        <button onclick="gerarMensagemInicial()">Gerar Mensagem de INÍCIO</button>
+        <button onclick="gerarMensagemRecusa()">Gerar Mensagem de RECUSA</button>
+        <button onclick="gerarCertidaoInfrutifera()">Gerar CERTIDÃO INFRUTÍFERA</button>
+        <button onclick="gerarCertidaoPositiva()">Gerar CERTIDÃO POSITIVA</button>
+    </div>
+
+    <h3 id="titulo_output">Mensagem de Início Pronta:</h3>
+    <div class="output-wrapper">
+        <div class="copy-button-wrapper">
+            <button onclick="copiarMensagem('output_mensagem')">Copiar Texto</button>
+        </div>
+        <div class="output-section">
+            <textarea id="output_mensagem" readonly></textarea>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- MAPAS CNJ (Constantes) ---
+    const TRIBUNAIS = {'13': 'Tribunal de Justiça de Minas Gerais'};
+    const JUSTICAS = {'8': 'Justiça Estadual'};
+    
+    // VARIÁVEIS GLOBAIS PARA BANCO DE DADOS LOCAL
+    let VARAS_POR_COMARCA = {}; 
+    let COMARCAS_MAP = {}; 
+    let html5QrcodeScanner = null;
+
+    // --- FUNÇÕES DE UTILIDADE ---
+    function copiarMensagem(elementId) {
+        const textArea = document.getElementById(elementId);
+        textArea.select();
+        textArea.setSelectionRange(0, 99999);
+        navigator.clipboard.writeText(textArea.value)
+            .then(() => {
+                alert('Mensagem copiada para a área de transferência!');
+            })
+            .catch(err => {
+                console.error('Falha ao copiar texto: ', err);
+                alert('Falha ao copiar. Tente selecionar o texto manualmente.');
+            });
+    }
+
+    // --- FUNÇÕES DE CONFIGURAÇÃO (Local Storage) ---
+    function salvarConfiguracoesIdentificacao() {
+        const nome_servidor = document.getElementById('nome_servidor').value.trim();
+        localStorage.setItem('oja_nome_servidor', nome_servidor);
+        alert('Identificação pessoal salva com sucesso!');
+    }
+
+    function salvarComarcaEVara() {
+        const cod_completo = document.getElementById('cod_completo').value.trim();
+        const nome_vara_manual = document.getElementById('nome_vara_manual').value.trim();
+        const nome_comarca_manual = document.getElementById('nome_comarca_manual').value.trim();
+        
+        if (cod_completo.length !== 26) {
+            alert("Erro: Cole o Código de Barras completo (26 dígitos) antes de salvar a Vara.");
+            return;
+        }
+        if (!nome_vara_manual || !nome_comarca_manual) {
+            alert("Erro: Preencha o nome da Vara/Secretaria E o nome da Comarca.");
+            return;
+        }
+        
+        const data = getCNJData(cod_completo);
+        const cod_comarca = data.cod_comarca;
+        const cod_secretaria = data.cod_secretaria;
+        const chave_vara = `${cod_comarca}-${cod_secretaria}`;
+
+        VARAS_POR_COMARCA[chave_vara] = nome_vara_manual;
+        localStorage.setItem('oja_varas_map', JSON.stringify(VARAS_POR_COMARCA));
+        
+        COMARCAS_MAP[cod_comarca] = nome_comarca_manual;
+        localStorage.setItem('oja_comarcas_map', JSON.stringify(COMARCAS_MAP));
+        
+        alert(`Comarca e Vara salvas!\nComarca: ${nome_comarca_manual} (Cód. ${cod_comarca})\nVara: ${nome_vara_manual}`);
+        decodificarCNJ(cod_completo); 
+    }
+
+    function carregarConfiguracoes() {
+        const nome_servidor_salvo = localStorage.getItem('oja_nome_servidor');
+        const varas_map_salvo = localStorage.getItem('oja_varas_map');
+        const comarcas_map_salvo = localStorage.getItem('oja_comarcas_map');
+
+        if (nome_servidor_salvo) {
+            document.getElementById('nome_servidor').value = nome_servidor_salvo;
+        }
+        
+        if (varas_map_salvo) {
+            try {
+                VARAS_POR_COMARCA = JSON.parse(varas_map_salvo);
+            } catch (e) {
+                console.error("Erro ao carregar mapa de varas.", e);
+            }
+        }
+        
+        if (comarcas_map_salvo) {
+            try {
+                COMARCAS_MAP = JSON.parse(comarcas_map_salvo);
+            } catch (e) {
+                console.error("Erro ao carregar mapa de comarcas.", e);
+            }
+        }
+    }
+    
+    // --- FUNÇÕES DE LEITURA DA CÂMERA (HTML5-Qrcode) ---
+    function iniciarLeituraCamera() {
+        const leitorDiv = document.getElementById('reader_container');
+        const btnIniciar = document.getElementById('btn_iniciar_camera');
+
+        if (html5QrcodeScanner && html5QrcodeScanner.getState() === 2) { // 2 = STARTED
+            html5QrcodeScanner.stop().then(() => {
+                leitorDiv.style.display = 'none';
+                btnIniciar.innerText = 'Ler Código de Barras com Câmera';
+            }).catch(err => console.error("Erro ao parar a câmera:", err));
+            return;
+        }
+        
+        leitorDiv.style.display = 'block';
+        html5QrcodeScanner = new Html5Qrcode("reader");
+        
+        const config = { 
+            fps: 15, 
+            qrbox: { width: 350, height: 150 }, 
+            formats: [
+                Html5QrcodeSupportedFormats.CODE_128, 
+                Html5QrcodeSupportedFormats.ITF,
+                Html5QrcodeSupportedFormats.CODE_39
+            ],
+            tryHarder: true,
+            disableFlip: true 
+        };
+        
+        btnIniciar.innerText = 'Parar Câmera (Tentando ler...)';
+
+        html5QrcodeScanner.start(
+            { facingMode: "environment" }, 
+            config,
+            onScanSuccess,
+            onScanError
+        ).catch(err => {
+            alert(`Erro ao iniciar câmera. Verifique permissões ou se outra aplicação está usando (ou use o Google Lens): ${err}`);
+            leitorDiv.style.display = 'none';
+            btnIniciar.innerText = 'Tentar Ler Código de Barras com Câmera';
+        });
+    }
+
+    function onScanSuccess(decodedText, decodedResult) {
+        document.getElementById('cod_completo').value = decodedText;
+        decodificarCNJ(decodedText);
+        
+        html5QrcodeScanner.stop().then(() => {
+            document.getElementById('reader_container').style.display = 'none';
+            document.getElementById('btn_iniciar_camera').innerText = 'Ler Código de Barras com Câmera';
+        });
+    }
+
+    function onScanError(errorMessage) {
+        // Ignora erros temporários de leitura
+    }
+
+    // --- FUNÇÕES CNJ + GERAÇÃO ---
+
+    function getCNJData(cod_completo) {
+        if (cod_completo.length !== 26) return null;
+
+        const cod_secretaria = cod_completo.substring(0, 4); 
+        
+        const num_processo_cnj_20 = cod_completo.substring(4, 24); 
+        const num_seq = num_processo_cnj_20.substring(0, 7);
+        const dv = num_processo_cnj_20.substring(7, 9);
+        const ano_proc = num_processo_cnj_20.substring(9, 13);
+        const seg_just = num_processo_cnj_20.substring(13, 14); 
+        const cod_trib = num_processo_cnj_20.substring(14, 16);
+        const cod_comarca = num_processo_cnj_20.substring(16, 20); 
+
+        const num_mandado = cod_completo.substring(24, 26);
+
+        const nome_tribunal = TRIBUNAIS[cod_trib] || `Tribunal Cód. ${cod_trib}`;
+        const nome_justica = JUSTICAS[seg_just] || `Justiça Cód. ${seg_just}`;
+        
+        return {
+            processo_formatado: `${num_seq}-${dv}.${ano_proc}.${seg_just}.${cod_trib}.${cod_comarca}`,
+            num_mandado: num_mandado,
+            cod_comarca: cod_comarca,
+            cod_secretaria: cod_secretaria,
+            comarca: COMARCAS_MAP[cod_comarca] || `Cód. ${cod_comarca}`,
+            tribunal: nome_tribunal,
+            justica: nome_justica,
+        };
+    }
+
+    function decodificarCNJ(cod_completo) {
+        const info_cnj_div = document.getElementById('info_cnj');
+        info_cnj_div.innerHTML = '';
+        document.getElementById('nome_vara_manual').value = '';
+        document.getElementById('nome_comarca_manual').value = ''; 
+
+        if (cod_completo.length < 26) {
+            info_cnj_div.innerHTML = 'Aguardando 26 dígitos do Código de Barras...';
+            return;
+        }
+
+        const data = getCNJData(cod_completo);
+        const chave_vara = `${data.cod_comarca}-${data.cod_secretaria}`;
+
+        // Tenta preencher o NOME DA VARA/COMARCA
+        document.getElementById('nome_vara_manual').value = VARAS_POR_COMARCA[chave_vara] || '';
+        document.getElementById('nome_comarca_manual').value = COMARCAS_MAP[data.cod_comarca] || ''; 
+        
+        info_cnj_div.innerHTML = `
+            <p><strong>Número CNJ:</strong> ${data.processo_formatado}</p>
+            <p><strong>Tribunal:</strong> ${data.tribunal}</p>
+            <p><strong>Comarca:</strong> ${data.comarca} | <strong>Secretaria (Cód. Interno):</strong> ${data.cod_secretaria}</p>
+            <p><strong>Seq. Mandado (Final):</strong> ${data.num_mandado}</p>
+        `;
+        
+        gerarMensagemInicial(); 
+    }
+
+    // FUNÇÕES DE GERAÇÃO CORRIGIDAS E FINALIZADAS
+    
+    function gerarMensagemInicial() {
+        document.getElementById('titulo_output').innerText = 'Mensagem de INÍCIO Pronta (Copiar/Colar):';
+        const cod_completo = document.getElementById('cod_completo').value.trim();
+        const data = getCNJData(cod_completo);
+        const servidor = document.getElementById('nome_servidor').value.trim();
+        const nome_jurisdicionado = document.getElementById('nome_jurisdicionado').value.trim() || "";
+        const dados_pessoais = document.getElementById('dados_pessoais').value.trim();
+        const nome_vara = document.getElementById('nome_vara_manual').value.trim(); // Pega a Vara preenchida
+        
+        if (!data) {
+            document.getElementById('output_mensagem').value = "Aguardando Código de Barras completo (26 dígitos).";
+            return;
+        }
+
+        let info_adicional = "";
+        if (dados_pessoais) {
+            info_adicional = `\n(Ato referente ao jurisdicionado com detalhe de segurança: **${dados_pessoais}**)\n`;
+        }
+        
+        // Define o destino da secretaria, usando o nome preenchido ou um genérico
+        const secretaria_destino = nome_vara || `Secretaria do Fórum de ${data.comarca}`;
+
+
+        const mensagem = 
+`Prezado(a) Sr.(a) *${nome_jurisdicionado}*,
+    
+Você está sendo contatado(a) pelo *${servidor}*, Servidor(a) Público(a) do ${data.tribunal}.
+
+O contato é para o cumprimento do Mandado Judicial (Nº ${data.num_mandado}) referente ao:
+    
+ *PROCESSO: ${data.processo_formatado}*
+${info_adicional}
+*Para sua segurança, a diligência é realizada de forma eletrônica, conforme as normas do Judiciário Resolução CNJ nº 354/2020, Lei nº 11.419/2006, Portaria Conjunta nº 1.109/PR/2020 do TJMG.*
+
+Para validarmos sua identidade e darmos seguimento ao ato, é *necessário* que V. Sa. confirme sua identidade:
+    
+1. *Confirme seu NOME COMPLETO:*
+2. *CPF/CNPJ: (informar apenas os 4 últimos dígitos para validação)*
+3. *DATA DE NASCIMENTO:*
+
+*DÚVIDAS*
+Entre em contato com o Fórum de *Muriaé/MG*:
+- *Fórum: (32) 3729-3100*
+- *Central de Mandados: (32) 3729-3125*
+    
+*Após a confirmação dos dados, enviaremos o teor do Mandado.*
+
+Caso não responda a esta mensagem em 24h o Mandado será devolvido à secretaria.
+Neste caso, o Sr.(a) deve procurar diretamente a *Secretaria ${secretaria_destino}*.
+`;
+        document.getElementById('output_mensagem').value = mensagem.trim();
+    }
+
+    function gerarMensagemRecusa() {
+        document.getElementById('titulo_output').innerText = 'Mensagem de RECUSA Pronta (Copiar/Colar):';
+        const cod_completo = document.getElementById('cod_completo').value.trim();
+        const data = getCNJData(cod_completo);
+        const nome_vara = document.getElementById('nome_vara_manual').value.trim();
+        const nome_comarca = document.getElementById('nome_comarca_manual').value.trim() || data.comarca;
+        
+        if (!data) {
+            document.getElementById('output_mensagem').value = "Erro: Por favor, insira o Código de Barras completo (26 dígitos).";
+            return;
+        }
+        
+        // Define a vara e a comarca para o meio da mensagem (devolução)
+        const vara_devolucao = nome_vara ? `${nome_vara} - ${nome_comarca}/MG` : `Secretaria do Juízo - ${nome_comarca}/MG`;
+        // Define a secretaria para o final da mensagem
+        const vara_final = nome_vara ? `Secretaria ${nome_vara}` : 'Secretaria do Fórum';
+
+
+        const mensagem = 
+`Tomamos nota da sua **RECUSA** em fornecer os dados de identificação obrigatórios ou em aceitar o recebimento do Mandado Judicial (número ${data.num_mandado}) referente ao Processo: ${data.processo_formatado}.
+    
+A tentativa de comunicação por WhatsApp está **ENCERRADA**. O Mandado será devolvido à ${vara_devolucao}, com a devida Certidão de Diligência Infrutífera por via eletrônica.
+       
+Para obter o andamento do processo ou uma nova forma de comunicação, procure a ${vara_final} ou ligue para os telefones oficiais de ${nome_comarca}.
+`;
+        document.getElementById('output_mensagem').value = mensagem.trim();
+    }
+
+    function gerarCertidaoInfrutifera() {
+        document.getElementById('titulo_output').innerText = 'CERTIDÃO INFRUTÍFERA Pronta (Copiar/Colar no Sistema):';
+        const cod_completo = document.getElementById('cod_completo').value.trim();
+        const data = getCNJData(cod_completo);
+        const servidor = document.getElementById('nome_servidor').value.trim();
+        const nome_vara = document.getElementById('nome_vara_manual').value.trim();
+        const nome_comarca = document.getElementById('nome_comarca_manual').value.trim() || data.comarca;
+        const nome_jurisdicionado = document.getElementById('nome_jurisdicionado').value.trim() || "o destinatário";
+
+        if (!data) {
+            document.getElementById('output_mensagem').value = "Erro: Por favor, insira o Código de Barras completo (26 dígitos).";
+            return;
+        }
+        
+        let vara_display = nome_vara ? `${nome_vara} - ${nome_comarca}` : 'Secretaria do Juízo';
+
+        const certidao = 
+`CERTIDÃO DE DILIGÊNCIA INFRUTÍFERA (MEIO ELETRÔNICO)
+    
+Certifico e dou fé que, em cumprimento ao r. Mandado Judicial Nº ${data.num_mandado} referente ao Processo: ${data.processo_formatado}, diligenciei o ato por meio do aplicativo WhatsApp Business, utilizando o número de contato informado no mandado.
+    O contato com ${nome_jurisdicionado} foi iniciado em XXXX com a devida identificação deste(a) Oficial(a) de Justiça.
+    Solicicei a confirmação de identidade da parte (Nome, CPF e Data de Nascimento) para garantia da validade e autenticidade da comunicação, conforme cautelas exigidas pela jurisprudência do STJ.
+    Decorrido o prazo legal e a janela de 24 horas (informada no aviso), ${nome_jurisdicionado}: NÃO RESPONDEU / OU / RECUSOU-SE a fornecer os dados de identificação.
+    Em razão da ausência de confirmação da identidade e da ciência inequívoca do ato pela parte, dou a diligência restou prejudicada, sob pena de posterior nulidade do ato processual.
+    Ante ao exposto, dDevolvo o presente Mandado à ${vara_display} para as providências de direito.    
+[Inserir Local], ${new Date().toLocaleDateString('pt-BR')}
+${servidor}
+`;
+        document.getElementById('output_mensagem').value = certidao.trim();
+    }
+    
+    function gerarCertidaoPositiva() {
+        document.getElementById('titulo_output').innerText = 'CERTIDÃO POSITIVA Pronta (Copiar/Colar no Sistema):';
+        const cod_completo = document.getElementById('cod_completo').value.trim();
+        const data = getCNJData(cod_completo);
+        const servidor_completo = document.getElementById('nome_servidor').value.trim();
+        
+        // Separa o nome e a matrícula para a assinatura final
+        const [nome_servidor, matricula_completa] = servidor_completo.split(', matrícula: ');
+        const matricula = matricula_completa ? matricula_completa.trim() : "";
+
+        const nome_vara = document.getElementById('nome_vara_manual').value.trim();
+        const nome_comarca = document.getElementById('nome_comarca_manual').value.trim() || data.comarca;
+        const nome_jurisdicionado = document.getElementById('nome_jurisdicionado').value.trim() || "o destinatário";
+
+        if (!data) {
+            document.getElementById('output_mensagem').value = "Erro: Por favor, insira o Código de Barras completo (26 dígitos).";
+            return;
+        }
+        
+        let vara_destino = nome_vara ? `${nome_vara} - ${nome_comarca}/MG` : `${data.comarca}/MG`;
+
+        const certidao = 
+`CERTIDÃO POSITIVA DE ATO PROCESSUAL (MEIO ELETRÔNICO)
+    
+Certifico e dou fé que, em cumprimento ao r. Mandado Judicial (número ${data.num_mandado}) referente ao Processo: ${data.processo_formatado}, às XXXXX diligenciei o ato por meio do aplicativo WhatsApp Business, utilizando o número de contato informado no mandado.
+    
+O contato com ${nome_jurisdicionado} foi iniciado em [Inserir Data/Hora de Início].
+Foi pedido a confirmação de sua identidade (Nome, CPF e Data de Nascimento) para garantia da validade e autenticidade da comunicação.
+O(A) jurisdicionado(a), ${nome_jurisdicionado}, **CONFIRMOU SUA IDENTIDADE E ACEITOU** o recebimento do ato processual por via eletrônica.
+O teor do mandado foi integralmente enviado e a **ciência inequívoca** foi confirmada pela parte em [Inserir Data/Hora da Confirmação].
+Devolvo o presente Mandado à ${vara_destino} para as providências de direito.
+    
+${nome_servidor},
+${matricula}
+`;
+        document.getElementById('output_mensagem').value = certidao.trim();
+    }
+    
+    // --- INICIALIZAÇÃO ---
+    document.addEventListener('DOMContentLoaded', () => {
+        carregarConfiguracoes(); 
+        // O código de barras de teste '01155012514302025813043901' (CNJ 1251430-20.2025.8.13.0439 Mandado 01) foi removido do input para evitar pré-carregamento automático em branco,
+        // mas você pode colá-lo na caixa de texto.
+        const cod_completo = document.getElementById('cod_completo').value.trim();
+        decodificarCNJ(cod_completo);
+    });
+
+</script>
+
+</body>
+</html>
