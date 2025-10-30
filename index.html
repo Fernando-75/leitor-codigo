@@ -178,55 +178,47 @@
     
     // --- FUNÇÕES DE LEITURA DA CÂMERA (HTML5-Qrcode) ---
     function iniciarLeituraCamera() {
-        const leitorDiv = document.getElementById('reader_container');
-        const btnIniciar = document.getElementById('btn_iniciar_camera');
+    const leitorDiv = document.getElementById('reader_container');
+    const btnIniciar = document.getElementById('btn_iniciar_camera');
 
-        if (html5QrcodeScanner && html5QrcodeScanner.getState() === 2) { // 2 = STARTED
-            html5QrcodeScanner.stop().then(() => {
-                leitorDiv.style.display = 'none';
-                btnIniciar.innerText = 'Ler Código de Barras com Câmera';
-            }).catch(err => console.error("Erro ao parar a câmera:", err));
-            return;
-        }
-        
-        leitorDiv.style.display = 'block';
-        html5QrcodeScanner = new Html5Qrcode("reader");
-        
-        const config = { 
-            fps: 15, 
-            qrbox: { width: 350, height: 150 }, 
-            formats: [
-                Html5QrcodeSupportedFormats.CODE_128, 
-                Html5QrcodeSupportedFormats.ITF,
-                Html5QrcodeSupportedFormats.CODE_39
-            ],
-            tryHarder: true,
-            disableFlip: true 
-        };
-        
-        btnIniciar.innerText = 'Parar Câmera (Tentando ler...)';
-
-        html5QrcodeScanner.start(
-            { facingMode: "environment" }, 
-            config,
-            onScanSuccess,
-            onScanError
-        ).catch(err => {
-            alert(`Erro ao iniciar câmera. Verifique permissões ou se outra aplicação está usando (ou use o Google Lens): ${err}`);
-            leitorDiv.style.display = 'none';
-            btnIniciar.innerText = 'Tentar Ler Código de Barras com Câmera';
-        });
-    }
-
-    function onScanSuccess(decodedText, decodedResult) {
-        document.getElementById('cod_completo').value = decodedText;
-        decodificarCNJ(decodedText);
-        
+    // Se já está rodando, para
+    if (html5QrcodeScanner && html5QrcodeScanner.getState() === 2) { 
         html5QrcodeScanner.stop().then(() => {
-            document.getElementById('reader_container').style.display = 'none';
-            document.getElementById('btn_iniciar_camera').innerText = 'Ler Código de Barras com Câmera';
-        });
+            leitorDiv.style.display = 'none';
+            btnIniciar.innerText = 'Ler Código de Barras com Câmera';
+        }).catch(err => console.error("Erro ao parar a câmera:", err));
+        return;
     }
+
+    leitorDiv.style.display = 'block';
+    html5QrcodeScanner = new Html5Qrcode("reader");
+
+    const config = { 
+        fps: 30,                       // mais frames para celular top
+        qrbox: { width: 400, height: 200 },  // área maior de leitura
+        formats: [
+            Html5QrcodeSupportedFormats.CODE_128, 
+            Html5QrcodeSupportedFormats.ITF,
+            Html5QrcodeSupportedFormats.CODE_39
+        ],
+        tryHarder: true,               // aumenta chance de leitura
+        disableFlip: false             // permite inverter se necessário
+    };
+
+    btnIniciar.innerText = 'Parar Câmera (Tentando ler...)';
+
+    html5QrcodeScanner.start(
+        { facingMode: { exact: "environment" } }, // força câmera traseira
+        config,
+        onScanSuccess,
+        onScanError
+    ).catch(err => {
+        alert(`Erro ao iniciar câmera: ${err}. Verifique permissões ou use Chrome/Edge.`);
+        leitorDiv.style.display = 'none';
+        btnIniciar.innerText = 'Tentar Ler Código de Barras com Câmera';
+    });
+}
+
 
     function onScanError(errorMessage) {
         // Ignora erros temporários de leitura
