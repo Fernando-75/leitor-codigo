@@ -94,7 +94,7 @@
         const servidor = document.getElementById('nome_servidor').value;
         
         // Texto com asteriscos colados para negrito no WhatsApp
-        const msg = `Bom dia/Boa tarde!\n\nPrezado(a) Sr.(a) *${parte}*,\n\nEste contato está sendo realizado por *${servidor}*, Servidor Público do Tribunal de Justiça de Minas Gerais, de forma excepcional, em conformidade com a *PORTARIA Nº 7.047/CGJ/2022*.\n\nO presente contato visa o cumprimento de *MANDADO JUDICIAL* referente ao *PROCESSO: ${proc}*.\n\nPara segurança do ato e validade da diligência eletrônica (Resolução CNJ nº 354/2020), é *IMPRESCINDÍVEL* que V. Sa. confirme sua identidade informando:\n\n1. *Nome Completo*\n2. *4 últimos dígitos do CPF*\n3. *Data de Nascimento*\n\nApós a referida validação, enviaremos o teor do Mandado. Em caso de dúvidas, contatar o Fórum de Muriaé: (32) 3729-3100 ou Central de Mandados: (32) 3729-3125.`;
+        const msg = `Prezado(a) Sr.(a) ${parte},\n\nEste contato está sendo realizado por ${servidor} do Tribunal de Justiça de Minas Gerais, de forma excepcional, em conformidade com a PORTARIA Nº 7.047/CGJ/2022.\n\nO presente contato visa o cumprimento de MANDADO JUDICIAL referente ao PROCESSO: ${proc}\n\nPara segurança do ato e validade da diligência eletrônica (Resolução CNJ nº 354/2020), é IMPRESCINDÍVEL que V. Sa. confirme sua identidade informando:\n\n1. Nome Completo\n2. 4 últimos dígitos do CPF\n3. Data de Nascimento\n\nApós a referida validação, enviaremos o teor do Mandado. Em caso de dúvidas, contatar o Fórum de Muriaé: (32) 3729-3100 ou Central de Mandados: (32) 3729-3125.`;
         
         document.getElementById('output_texto').value = msg;
     }
